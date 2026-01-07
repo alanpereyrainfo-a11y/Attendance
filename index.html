@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tracker de Oficina Pro 🏢</title>
+    <title>Tracker Oficina (US Calendar) 🇺🇸</title>
     <style>
         :root {
             --primary: #2563eb;
             --success: #22c55e; /* Verde Oficina */
-            --holiday: #f97316; /* Naranja Feriado */
+            --holiday-us: #8b5cf6; /* Violeta Feriado US */
             --bg: #f8fafc;
             --text: #1e293b;
         }
@@ -22,7 +22,7 @@
             margin: 0 auto;
         }
 
-        h1 { text-align: center; color: var(--primary); margin-bottom: 5px; }
+        h1 { text-align: center; color: var(--text); margin-bottom: 5px; }
         p.subtitle { text-align: center; color: #64748b; margin-bottom: 20px; font-size: 0.9rem; }
 
         /* Controles */
@@ -37,6 +37,7 @@
             flex-wrap: wrap;
             justify-content: center;
             align-items: flex-end;
+            border-left: 5px solid var(--primary);
         }
 
         .input-group { display: flex; flex-direction: column; gap: 5px; }
@@ -46,7 +47,6 @@
             padding: 8px;
             border: 1px solid #ccc;
             border-radius: 5px;
-            font-family: inherit;
         }
 
         button#calcBtn {
@@ -59,7 +59,6 @@
             font-weight: bold;
             height: 40px;
         }
-
         button#calcBtn:hover { background-color: #1d4ed8; }
 
         /* Grid de Resultados */
@@ -77,14 +76,20 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             text-align: center;
             border-top: 4px solid #ccc;
+            position: relative;
         }
 
-        .stat-box.manual { border-color: var(--primary); }
-        .stat-box.auto { border-color: #8b5cf6; }
+        .stat-box.manual { border-color: #64748b; }
+        .stat-box.auto { border-color: var(--primary); background: #eff6ff; }
 
-        .stat-box h3 { margin-top: 0; font-size: 1rem; color: #64748b; }
-        .big-percent { font-size: 2.5rem; font-weight: bold; margin: 10px 0; }
+        .stat-box h3 { margin-top: 0; font-size: 1rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .big-percent { font-size: 3rem; font-weight: 800; margin: 10px 0; color: #0f172a; }
         .details { font-size: 0.9rem; color: #475569; line-height: 1.6; }
+        .badge {
+            position: absolute; top: 10px; right: 10px;
+            background: var(--primary); color: white;
+            font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;
+        }
 
         /* Calendario */
         .calendar-header {
@@ -100,108 +105,100 @@
             cursor: pointer;
             padding: 5px 15px;
             border-radius: 4px;
-            font-weight: bold;
-            color: #475569;
+            font-weight: bold; color: #475569;
         }
-        .nav-btn:hover { background: #f1f5f9; }
 
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
+            gap: 6px;
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
 
         .day-name {
-            text-align: center;
-            font-weight: bold;
-            color: #94a3b8;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            padding-bottom: 10px;
+            text-align: center; font-weight: bold; color: #94a3b8;
+            font-size: 0.8rem; text-transform: uppercase; padding-bottom: 5px;
         }
 
         .day {
             aspect-ratio: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: all 0.1s;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            cursor: pointer; border-radius: 6px;
             border: 1px solid #e2e8f0;
-            user-select: none;
-            font-weight: 500;
+            user-select: none; font-weight: 500; font-size: 0.9rem;
             position: relative;
         }
 
         .day:hover { border-color: var(--primary); }
         .day.empty { background: transparent; border: none; cursor: default; }
-        
-        /* Estados Visuales */
         .day.weekend { background-color: #f1f5f9; color: #cbd5e1; }
         
+        /* ESTADOS */
         .day.office {
-            background-color: var(--success);
-            color: white;
-            border-color: var(--success);
-            box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);
+            background-color: var(--success); color: white; border-color: var(--success);
+        }
+        
+        /* Feriado US */
+        .day.holiday-us {
+            background-color: var(--holiday-us); color: white; border-color: var(--holiday-us);
+            cursor: help; /* Indica que hay info */
+        }
+        .day.holiday-us::after {
+            content: '★'; font-size: 0.6rem; margin-top: -2px;
         }
 
-        .day.holiday {
-            background-color: var(--holiday);
-            color: white;
-            border-color: var(--holiday);
-            text-decoration: line-through; /* Visualmente tachado */
+        /* Tooltip simple para el nombre del feriado */
+        .day.holiday-us:hover::before {
+            content: attr(data-title);
+            position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+            background: #333; color: #fff; padding: 5px 10px;
+            border-radius: 4px; font-size: 0.75rem; white-space: nowrap; z-index: 10;
+            pointer-events: none;
         }
 
         /* Leyenda */
         .legend {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 15px;
-            font-size: 0.85rem;
-            color: #64748b;
+            display: flex; justify-content: center; gap: 15px; margin-top: 15px;
+            font-size: 0.85rem; color: #64748b; flex-wrap: wrap;
         }
         .dot { width: 10px; height: 10px; display: inline-block; border-radius: 50%; margin-right: 5px; }
 
-        @media (max-width: 600px) {
-            .stats-container { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 600px) { .stats-container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
-    <h1>📅 Tracker de Oficina</h1>
-    <p class="subtitle">Haz clic en un día para rotar: <strong>Oficina</strong> > <strong>Feriado</strong> > <strong>Nada</strong></p>
+    <h1>🇺🇸 Tracker Oficina</h1>
+    <p class="subtitle">Feriados de USA se calculan automáticamente como "Asistido".</p>
 
     <div class="controls">
         <div class="input-group">
-            <label>Desde:</label>
+            <label>Inicio Manual:</label>
             <input type="date" id="startDate">
         </div>
         <div class="input-group">
-            <label>Hasta (Referencia):</label>
+            <label>Fin Manual:</label>
             <input type="date" id="endDate">
         </div>
-        <button id="calcBtn" onclick="updateDashboard()">Calcular Estadísticas</button>
+        <button id="calcBtn" onclick="updateDashboard()">Calcular Manual</button>
     </div>
 
     <div class="stats-container">
-        <div class="stat-box manual" id="manualStats" style="display:none">
-            <h3>Periodo Seleccionado</h3>
-            <div class="big-percent" style="color: var(--primary)">0%</div>
-            <div class="details"></div>
+        <div class="stat-box auto" id="autoStats">
+            <span class="badge">ACTUAL</span>
+            <h3>Corte Automático (60 días)</h3>
+            <div class="big-percent" id="autoPercent">0%</div>
+            <div class="details" id="autoDetails">Cargando...</div>
         </div>
 
-        <div class="stat-box auto" id="autoStats" style="display:none">
-            <h3>Métrica Automática (Rolling 60)</h3>
-            <div class="big-percent" style="color: #8b5cf6">0%</div>
-            <div class="details"></div>
+        <div class="stat-box manual" id="manualStats" style="opacity: 0.6">
+            <h3>Periodo Manual</h3>
+            <div class="big-percent" id="manualPercent">-</div>
+            <div class="details" id="manualDetails">Selecciona fechas arriba</div>
         </div>
     </div>
 
@@ -214,30 +211,97 @@
     <div class="calendar-grid" id="calendar"></div>
 
     <div class="legend">
-        <span><span class="dot" style="background:var(--success)"></span>Fui a la Ofi</span>
-        <span><span class="dot" style="background:var(--holiday)"></span>Feriado (No cuenta)</span>
+        <span><span class="dot" style="background:var(--success)"></span>Oficina (Manual)</span>
+        <span><span class="dot" style="background:var(--holiday-us)"></span>Feriado US (Cuenta Auto)</span>
         <span><span class="dot" style="background:#e2e8f0"></span>Ausente</span>
     </div>
 
     <script>
-        // --- Configuración y Estado ---
-        let currentDate = new Date();
-        
-        // Cargamos los datos. officeDays = Verde, holidayDays = Naranja
-        let officeDays = JSON.parse(localStorage.getItem('officeDays')) || [];
-        let holidayDays = JSON.parse(localStorage.getItem('holidayDays')) || [];
+        // --- 1. LÓGICA DE FERIADOS USA (Dinámico) ---
+        function getUSHolidays(year) {
+            const holidays = {};
 
+            // Helper para calcular "N-ésimo Día de la semana del Mes"
+            // (Ej: Thanksgiving es el 4to Jueves de Noviembre)
+            function getNthWeekday(n, weekday, month, year) {
+                let date = new Date(year, month, 1);
+                let count = 0;
+                while (date.getMonth() === month) {
+                    if (date.getDay() === weekday) {
+                        count++;
+                        if (count === n) return date;
+                    }
+                    date.setDate(date.getDate() + 1);
+                }
+                return null;
+            }
+
+            // Helper para ajustar "Observance" (Si cae Sábado -> Viernes, Domingo -> Lunes)
+            function adjustForWeekend(date) {
+                const day = date.getDay();
+                if (day === 0) { // Domingo
+                    date.setDate(date.getDate() + 1);
+                } else if (day === 6) { // Sábado
+                    date.setDate(date.getDate() - 1);
+                }
+                return date;
+            }
+
+            // Definir feriados fijos y móviles
+            const rawHolidays = [
+                { name: "New Year's Day", date: adjustForWeekend(new Date(year, 0, 1)) },
+                { name: "MLK Day", date: getNthWeekday(3, 1, 0, year) }, // 3er Lunes Enero
+                { name: "Presidents' Day", date: getNthWeekday(3, 1, 1, year) }, // 3er Lunes Febrero
+                { name: "Memorial Day", date: null }, // Último Lunes de Mayo (calculado abajo)
+                { name: "Juneteenth", date: adjustForWeekend(new Date(year, 5, 19)) },
+                { name: "Independence Day", date: adjustForWeekend(new Date(year, 6, 4)) },
+                { name: "Labor Day", date: getNthWeekday(1, 1, 8, year) }, // 1er Lunes Septiembre
+                { name: "Columbus Day", date: getNthWeekday(2, 1, 9, year) }, // 2do Lunes Octubre
+                { name: "Veterans Day", date: adjustForWeekend(new Date(year, 10, 11)) },
+                { name: "Thanksgiving", date: getNthWeekday(4, 4, 10, year) }, // 4to Jueves Nov
+                { name: "Christmas Day", date: adjustForWeekend(new Date(year, 11, 25)) }
+            ];
+
+            // Cálculo especial para Memorial Day (Último lunes de mayo)
+            let memDay = new Date(year, 4, 31); // 31 Mayo
+            while (memDay.getDay() !== 1) { memDay.setDate(memDay.getDate() - 1); }
+            rawHolidays.find(h => h.name === "Memorial Day").date = memDay;
+
+            // Formatear a YYYY-MM-DD
+            rawHolidays.forEach(h => {
+                if(h.date) {
+                    const str = h.date.toISOString().split('T')[0];
+                    holidays[str] = h.name;
+                }
+            });
+
+            return holidays;
+        }
+
+        // Cache de feriados por año para no recalcular mil veces
+        const holidaysCache = {};
+        function getHolidayName(dateStr) {
+            const year = parseInt(dateStr.split('-')[0]);
+            if (!holidaysCache[year]) {
+                holidaysCache[year] = getUSHolidays(year);
+            }
+            return holidaysCache[year][dateStr];
+        }
+
+        // --- 2. CONFIGURACIÓN Y ESTADO ---
+        let currentDate = new Date();
+        let officeDays = JSON.parse(localStorage.getItem('officeDays')) || [];
+        
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
         const calendarEl = document.getElementById('calendar');
         const monthDisplay = document.getElementById('monthDisplay');
 
-        // --- Renderizado del Calendario ---
+        // --- 3. RENDERIZADO DEL CALENDARIO ---
         function renderCalendar() {
             calendarEl.innerHTML = '';
             
             // Cabeceras
-            const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-            days.forEach(day => {
+            ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].forEach(day => {
                 const div = document.createElement('div');
                 div.className = 'day-name';
                 div.innerText = day;
@@ -246,7 +310,6 @@
 
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
-
             monthDisplay.innerText = `${monthNames[month]} ${year}`;
 
             const firstDayOfMonth = new Date(year, month, 1);
@@ -255,9 +318,7 @@
 
             // Espacios vacíos
             for(let i = 0; i < paddingDays; i++) {
-                const div = document.createElement('div');
-                div.className = 'day empty';
-                calendarEl.appendChild(div);
+                calendarEl.appendChild(document.createElement('div'));
             }
 
             // Días
@@ -266,50 +327,41 @@
                 dayDiv.className = 'day';
                 dayDiv.innerText = i;
                 
-                const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-                
-                // Visual Fines de semana
-                const dObj = new Date(year, month, i);
-                if(dObj.getDay() === 0 || dObj.getDay() === 6) {
-                    dayDiv.classList.add('weekend');
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const holidayName = getHolidayName(dateStr);
+                const dayOfWeek = new Date(year, month, i).getDay();
+
+                // Estilos
+                if(dayOfWeek === 0 || dayOfWeek === 6) dayDiv.classList.add('weekend');
+
+                if (holidayName) {
+                    // Es Feriado US
+                    dayDiv.classList.add('holiday-us');
+                    dayDiv.setAttribute('data-title', holidayName);
+                } else if (officeDays.includes(dateStr)) {
+                    // Es Oficina Manual
+                    dayDiv.classList.add('office');
                 }
 
-                // Clases según estado
-                if (officeDays.includes(dateString)) dayDiv.classList.add('office');
-                if (holidayDays.includes(dateString)) dayDiv.classList.add('holiday');
-
-                // Click event: Rotación de estados
-                dayDiv.addEventListener('click', () => cycleDayState(dateString, dayDiv));
+                // Click: Solo funciona si NO es feriado
+                dayDiv.addEventListener('click', () => {
+                    if (!holidayName) toggleOfficeDay(dateStr, dayDiv);
+                });
+                
                 calendarEl.appendChild(dayDiv);
             }
         }
 
-        // --- Lógica de Rotación de Estados ---
-        function cycleDayState(dateStr, element) {
-            // Estado 0: Nada -> Estado 1: Office -> Estado 2: Holiday -> Estado 0
-            
-            const isOffice = officeDays.includes(dateStr);
-            const isHoliday = holidayDays.includes(dateStr);
-
-            if (!isOffice && !isHoliday) {
-                // De Nada a Oficina
+        function toggleOfficeDay(dateStr, element) {
+            if (officeDays.includes(dateStr)) {
+                officeDays = officeDays.filter(d => d !== dateStr);
+                element.classList.remove('office');
+            } else {
                 officeDays.push(dateStr);
                 element.classList.add('office');
-            } else if (isOffice) {
-                // De Oficina a Feriado
-                officeDays = officeDays.filter(d => d !== dateStr);
-                holidayDays.push(dateStr);
-                element.classList.remove('office');
-                element.classList.add('holiday');
-            } else if (isHoliday) {
-                // De Feriado a Nada
-                holidayDays = holidayDays.filter(d => d !== dateStr);
-                element.classList.remove('holiday');
             }
-
-            // Guardar
             localStorage.setItem('officeDays', JSON.stringify(officeDays));
-            localStorage.setItem('holidayDays', JSON.stringify(holidayDays));
+            updateDashboard(); // Recalcular al hacer clic
         }
 
         function changeMonth(step) {
@@ -317,117 +369,96 @@
             renderCalendar();
         }
 
-        // --- Lógica de Negocio (Cálculos) ---
+        // --- 4. LÓGICA DE NEGOCIO Y "CORTES" ---
 
-        // Función Helper genérica para contar entre dos fechas
-        function calculatePeriodStats(start, end) {
+        function calculateStats(start, end) {
             let totalWorkingDays = 0;
-            let daysWentToOffice = 0;
+            let daysAttended = 0;
 
-            // Normalizar horas
-            let current = new Date(start);
-            current.setHours(0,0,0,0);
+            let curr = new Date(start);
+            curr.setHours(0,0,0,0);
             let limit = new Date(end);
             limit.setHours(0,0,0,0);
 
-            while (current <= limit) {
-                const dateStr = current.toISOString().split('T')[0];
-                const dayOfWeek = current.getDay();
+            while (curr <= limit) {
+                const dateStr = curr.toISOString().split('T')[0];
+                const dayOfWeek = curr.getDay();
+                const holidayName = getHolidayName(dateStr);
 
-                // Es día laboral? (No sab, No dom)
+                // Solo consideramos Lunes a Viernes
                 if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-                    
-                    // Chequear si es feriado (Si es feriado, NO suma al total de días hábiles)
-                    if (!holidayDays.includes(dateStr)) {
-                        totalWorkingDays++;
+                    totalWorkingDays++;
 
-                        // Chequear si fue a la oficina
-                        if (officeDays.includes(dateStr)) {
-                            daysWentToOffice++;
-                        }
+                    if (holidayName) {
+                        // REGLA: Feriado cuenta como asistencia (Automático)
+                        daysAttended++;
+                    } else if (officeDays.includes(dateStr)) {
+                        // Usuario marcó que fue
+                        daysAttended++;
                     }
                 }
-                
-                // Siguiente día
-                current.setDate(current.getDate() + 1);
+                curr.setDate(curr.getDate() + 1);
             }
 
-            const percentage = totalWorkingDays === 0 ? 0 : ((daysWentToOffice / totalWorkingDays) * 100).toFixed(1);
-            
-            return {
-                total: totalWorkingDays,
-                attended: daysWentToOffice,
-                percent: percentage,
-                startStr: start.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' }),
-                endStr: end.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })
-            };
-        }
-
-        // Función Helper para encontrar el último domingo (Corte)
-        function getLastSunday(refDateStr) {
-            const date = new Date(refDateStr);
-            date.setHours(0,0,0,0);
-            const dayOfWeek = date.getDay(); // 0 = Domingo
-            
-            // Si hoy es domingo (0), el corte es hoy.
-            // Si es lunes (1), restamos 1 día para ir al domingo anterior.
-            const diff = date.getDate() - dayOfWeek;
-            
-            const lastSunday = new Date(date);
-            lastSunday.setDate(diff);
-            return lastSunday;
+            const percent = totalWorkingDays === 0 ? 0 : ((daysAttended / totalWorkingDays) * 100).toFixed(1);
+            return { total: totalWorkingDays, attended: daysAttended, percent };
         }
 
         function updateDashboard() {
-            const startInput = document.getElementById('startDate').value;
-            const endInput = document.getElementById('endDate').value;
+            // A) CÁLCULO AUTOMÁTICO (CORTE SEMANAL ESTRICTO)
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            // Paso 1: Encontrar el último Sábado completado (Corte)
+            // Si hoy es Martes, el corte fue el Sábado pasado.
+            // Si hoy es Domingo, el corte fue ayer (Sábado).
+            const dayOfWeek = today.getDay(); // 0=Dom, 1=Lun...
+            const daysToSubtract = dayOfWeek + 1; // Si es Dom(0) -> -1 día (Sab). Si Lun(1) -> -2 días (Sab).
+            
+            const autoEnd = new Date(today);
+            autoEnd.setDate(today.getDate() - daysToSubtract);
+            
+            // Paso 2: 60 días hacia atrás desde el corte
+            const autoStart = new Date(autoEnd);
+            autoStart.setDate(autoEnd.getDate() - 60);
 
-            if (!startInput || !endInput) {
-                alert("Selecciona las fechas primero.");
-                return;
+            const autoRes = calculateStats(autoStart, autoEnd);
+
+            // Render Auto
+            document.getElementById('autoPercent').innerText = `${autoRes.percent}%`;
+            document.getElementById('autoPercent').style.color = autoRes.percent >= 60 ? 'var(--success)' : 'var(--primary)';
+            
+            // Formatear fechas bonitas
+            const formatOpt = { day: '2-digit', month: '2-digit' };
+            document.getElementById('autoDetails').innerHTML = `
+                <b>Cierre Semanal:</b> ${autoEnd.toLocaleDateString('es-ES', formatOpt)}<br>
+                <b>Periodo:</b> ${autoStart.toLocaleDateString('es-ES', formatOpt)} - ${autoEnd.toLocaleDateString('es-ES', formatOpt)}<br>
+                Oficina + Feriados: <strong>${autoRes.attended}</strong> / ${autoRes.total}
+            `;
+
+
+            // B) CÁLCULO MANUAL (Inputs)
+            const sInput = document.getElementById('startDate').value;
+            const eInput = document.getElementById('endDate').value;
+            
+            if(sInput && eInput) {
+                const sDate = new Date(sInput + 'T00:00:00');
+                const eDate = new Date(eInput + 'T00:00:00');
+                const manualRes = calculateStats(sDate, eDate);
+                
+                document.getElementById('manualPercent').innerText = `${manualRes.percent}%`;
+                document.getElementById('manualDetails').innerHTML = `
+                    Periodo manual: ${manualRes.attended}/${manualRes.total} días.
+                `;
             }
-
-            // 1. Cálculo Manual (lo que selecciona el usuario)
-            const manualRes = calculatePeriodStats(new Date(startInput + 'T00:00:00'), new Date(endInput + 'T00:00:00'));
-            
-            const manualBox = document.getElementById('manualStats');
-            manualBox.style.display = 'block';
-            manualBox.querySelector('.big-percent').innerText = `${manualRes.percent}%`;
-            manualBox.querySelector('.details').innerHTML = `
-                Rango: ${manualRes.startStr} al ${manualRes.endStr}<br>
-                Asistencias: <strong>${manualRes.attended}</strong> / ${manualRes.total} días hábiles
-            `;
-
-            // 2. Cálculo Automático (Rolling 60 con corte domingo)
-            // Lógica: Basado en la fecha "Hasta" (endInput), buscar el domingo de corte.
-            const cutDate = getLastSunday(endInput + 'T00:00:00');
-            
-            // Restar 60 días para el inicio de la ventana
-            const windowStart = new Date(cutDate);
-            windowStart.setDate(cutDate.getDate() - 60);
-
-            const autoRes = calculatePeriodStats(windowStart, cutDate);
-
-            const autoBox = document.getElementById('autoStats');
-            autoBox.style.display = 'block';
-            autoBox.querySelector('.big-percent').innerText = `${autoRes.percent}%`;
-            autoBox.querySelector('.details').innerHTML = `
-                Corte Domingo: ${autoRes.endStr}<br>
-                Ventana 60 días: Desde ${autoRes.startStr}<br>
-                Asistencias: <strong>${autoRes.attended}</strong> / ${autoRes.total} días hábiles
-            `;
         }
 
-        // Inicialización
+        // Init
         renderCalendar();
-        
-        // Sets default inputs
-        const today = new Date();
-        document.getElementById('endDate').value = today.toISOString().split('T')[0];
-        
-        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-        document.getElementById('startDate').value = firstDay.toISOString().split('T')[0];
+        updateDashboard();
 
+        // Sets default input values (visual only)
+        document.getElementById('endDate').value = new Date().toISOString().split('T')[0];
     </script>
 </body>
 </html>
