@@ -1,1 +1,465 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office Tracker Cloud ☁️</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #22c55e;
+            --bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 { text-align: center; color: var(--primary); margin-bottom: 5px; }
+        p.subtitle { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 0.9rem; }
+
+        /* Layout Grid: Calendario Izq | Info Der */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        @media (max-width: 768px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Tarjetas */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        /* Inputs */
+        .controls {
+            display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px;
+        }
+        .input-group { display: flex; flex-direction: column; }
+        .input-group label { font-size: 0.8rem; font-weight: bold; color: #64748b; margin-bottom: 4px;}
+        input[type="date"] { padding: 8px; border: 1px solid var(--border); border-radius: 6px; }
+        
+        button.action-btn {
+            background: var(--primary); color: white; border: none; padding: 0 20px;
+            border-radius: 6px; font-weight: bold; cursor: pointer; height: 38px; margin-top: auto;
+        }
+        button.action-btn:hover { background: #1d4ed8; }
+
+        /* Estadísticas */
+        .stats-box {
+            text-align: center;
+            padding: 15px;
+            background: #eff6ff;
+            border-radius: 8px;
+            border: 1px solid #bfdbfe;
+            margin-bottom: 15px;
+        }
+        .big-percent { font-size: 2.5rem; font-weight: 800; color: var(--primary); line-height: 1; margin: 10px 0; }
+        .details { font-size: 0.85rem; color: #475569; }
+
+        /* Calendario */
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .nav-btn { background: transparent; border: 1px solid var(--border); padding: 5px 12px; border-radius: 4px; cursor: pointer; }
+        
+        .calendar-grid {
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px;
+        }
+        .day-name { text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: bold; padding-bottom: 5px; }
+        
+        .day {
+            aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+            font-weight: 500; font-size: 0.9rem; user-select: none;
+        }
+        .day:hover { background-color: #f8fafc; border-color: var(--primary); }
+        .day.weekend { background-color: #f1f5f9; color: #cbd5e1; }
+        .day.selected { background-color: var(--success); color: white; border-color: var(--success); }
+        .day.loading { opacity: 0.5; pointer-events: none; }
+
+        /* Lista de Feriados Lateral */
+        .holiday-list ul { list-style: none; padding: 0; margin: 0; }
+        .holiday-list li {
+            padding: 10px; border-bottom: 1px solid var(--border);
+            font-size: 0.9rem; color: #475569;
+        }
+        .holiday-list li:last-child { border-bottom: none; }
+        .holiday-date { font-weight: bold; color: var(--text); display: block; }
+        .holiday-tag { 
+            display: inline-block; background: #f3e8ff; color: #7e22ce; 
+            font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-top: 4px;
+        }
+
+        /* Loading Overlay */
+        #loader { 
+            position: fixed; top:0; left:0; width:100%; height:100%; 
+            background: rgba(255,255,255,0.9); z-index: 999; 
+            display: flex; justify-content: center; align-items: center; 
+            font-weight: bold; color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">Conectando con la nube...</div>
+
+    <div class="container">
+        <h1>☁️ Tracker Oficina</h1>
+        <p class="subtitle">Datos sincronizados en tiempo real</p>
+
+        <div class="card controls">
+            <div class="input-group">
+                <label>Inicio Manual</label>
+                <input type="date" id="startDate">
+            </div>
+            <div class="input-group">
+                <label>Fin Manual</label>
+                <input type="date" id="endDate">
+            </div>
+            <button class="action-btn" onclick="updateDashboard()">Calcular</button>
+        </div>
+
+        <div class="main-grid">
+            <div class="left-col">
+                <div class="card">
+                    <div class="calendar-header">
+                        <button class="nav-btn" onclick="changeMonth(-1)">◀</button>
+                        <h3 id="monthDisplay" style="margin:0"></h3>
+                        <button class="nav-btn" onclick="changeMonth(1)">▶</button>
+                    </div>
+                    <div class="calendar-grid" id="calendar"></div>
+                </div>
+            </div>
+
+            <div class="right-col">
+                <div class="card">
+                    <h3 style="margin-top:0; font-size:1rem; color:#64748b">Métrica Automática (60d)</h3>
+                    <div class="stats-box">
+                        <div class="big-percent" id="autoPercent">--%</div>
+                        <div class="details" id="autoDetails">Calculando...</div>
+                    </div>
+                </div>
+
+                <div class="card" id="manualStatsCard" style="display:none">
+                    <h3 style="margin-top:0; font-size:1rem; color:#64748b">Periodo Manual</h3>
+                    <div class="stats-box" style="background: #f0fdf4; border-color: #bbf7d0;">
+                        <div class="big-percent" id="manualPercent" style="color: var(--success)">--%</div>
+                        <div class="details" id="manualDetails"></div>
+                    </div>
+                </div>
+
+                <div class="card holiday-list">
+                    <h3 style="margin-top:0; font-size:1rem; color:#64748b">Posibles Feriados (US)</h3>
+                    <p style="font-size:0.8rem; color:#94a3b8; margin-top:-10px;">Solo informativo. No afecta el cálculo.</p>
+                    <ul id="holidayListContainer">
+                        <li>No hay feriados este mes.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. CONFIGURACIÓN FIREBASE (¡EDITAR ESTO!)
+        // ==========================================
+        const firebaseConfig = {
+  apiKey: "AIzaSyDSioUsBBSMWBDI2Y-Hv5G9_7aufFKiqOg",
+  authDomain: "attendace-3867f.firebaseapp.com",
+  projectId: "attendace-3867f",
+  storageBucket: "attendace-3867f.firebasestorage.app",
+  messagingSenderId: "328837069036",
+  appId: "1:328837069036:web:8c85ac764dd55b932f0dc9",
+  measurementId: "G-FTELZRMDTT"
+};
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        // Referencia simple: Usaremos un ID único fijo para este ejemplo personal.
+        // Si quieres multi-usuario real, requeriría login.
+        const USER_ID = "mi_usuario_principal"; 
+        const docRef = db.collection("tracker_data").doc(USER_ID);
+
+        // ==========================================
+        // 2. ESTADO Y LÓGICA
+        // ==========================================
+        let currentDate = new Date();
+        let officeDays = []; // Se llenará desde Firebase
+        let isLoading = true;
+
+        // Cargar datos al inicio
+        function loadData() {
+            docRef.onSnapshot((doc) => {
+                if (doc.exists) {
+                    officeDays = doc.data().days || [];
+                } else {
+                    officeDays = [];
+                }
+                isLoading = false;
+                document.getElementById('loader').style.display = 'none';
+                renderApp();
+            }, (error) => {
+                console.error("Error cargando datos:", error);
+                alert("Error conectando a Firebase. Revisa la consola y tu configuración.");
+            });
+        }
+
+        // Guardar datos (Optimista)
+        function toggleDayCloud(dateStr) {
+            if (isLoading) return;
+
+            let newDays = [...officeDays];
+            if (newDays.includes(dateStr)) {
+                newDays = newDays.filter(d => d !== dateStr);
+            } else {
+                newDays.push(dateStr);
+            }
+
+            // Actualizamos localmente para sensación instantánea
+            officeDays = newDays;
+            renderCalendar();
+            updateDashboard();
+
+            // Enviamos a la nube
+            docRef.set({ days: newDays }, { merge: true })
+                .catch((error) => {
+                    console.error("Error guardando:", error);
+                    alert("No se pudo guardar en la nube.");
+                });
+        }
+
+        // ==========================================
+        // 3. CÁLCULO DE FERIADOS (SOLO VISUAL)
+        // ==========================================
+        function getUSHolidaysList(year, month) {
+            const holidays = [];
+            
+            // Helper para calcular fechas dinámicas
+            const getNthWeekday = (n, weekday, m, y) => {
+                let d = new Date(y, m, 1);
+                let count = 0;
+                while (d.getMonth() === m) {
+                    if (d.getDay() === weekday) {
+                        count++;
+                        if (count === n) return d;
+                    }
+                    d.setDate(d.getDate() + 1);
+                }
+                return null;
+            };
+
+            // Lista cruda de reglas
+            const rules = [
+                { name: "New Year's Day", d: new Date(year, 0, 1) },
+                { name: "MLK Day", d: getNthWeekday(3, 1, 0, year) },
+                { name: "Presidents' Day", d: getNthWeekday(3, 1, 1, year) },
+                { name: "Memorial Day", d: null }, // Se calcula abajo
+                { name: "Juneteenth", d: new Date(year, 5, 19) },
+                { name: "Independence Day", d: new Date(year, 6, 4) },
+                { name: "Labor Day", d: getNthWeekday(1, 1, 8, year) },
+                { name: "Columbus Day", d: getNthWeekday(2, 1, 9, year) },
+                { name: "Veterans Day", d: new Date(year, 10, 11) },
+                { name: "Thanksgiving", d: getNthWeekday(4, 4, 10, year) },
+                { name: "Christmas Day", d: new Date(year, 11, 25) }
+            ];
+
+            // Ajuste Memorial Day
+            let memDay = new Date(year, 4, 31);
+            while (memDay.getDay() !== 1) memDay.setDate(memDay.getDate() - 1);
+            rules.find(r => r.name === "Memorial Day").d = memDay;
+
+            // Filtrar solo los del mes actual
+            rules.forEach(r => {
+                if (r.d && r.d.getMonth() === month) {
+                    holidays.push({ 
+                        date: r.d.getDate(), 
+                        name: r.name,
+                        fullDate: r.d 
+                    });
+                }
+            });
+
+            return holidays.sort((a, b) => a.date - b.date);
+        }
+
+        // ==========================================
+        // 4. RENDERIZADO
+        // ==========================================
+        function renderApp() {
+            renderCalendar();
+            renderHolidaysSidebar();
+            updateDashboard();
+        }
+
+        function renderCalendar() {
+            const calendarEl = document.getElementById('calendar');
+            const monthDisplay = document.getElementById('monthDisplay');
+            calendarEl.innerHTML = '';
+
+            // Cabeceras
+            ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].forEach(d => {
+                const div = document.createElement('div');
+                div.className = 'day-name';
+                div.innerText = d;
+                calendarEl.appendChild(div);
+            });
+
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            
+            monthDisplay.innerText = `${monthNames[month]} ${year}`;
+
+            const firstDay = new Date(year, month, 1);
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const padding = firstDay.getDay();
+
+            for(let i=0; i<padding; i++) calendarEl.appendChild(document.createElement('div'));
+
+            for(let i=1; i<=daysInMonth; i++) {
+                const el = document.createElement('div');
+                el.className = 'day';
+                el.innerText = i;
+                
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+                const dayOfWeek = new Date(year, month, i).getDay();
+
+                if (dayOfWeek === 0 || dayOfWeek === 6) el.classList.add('weekend');
+                if (officeDays.includes(dateStr)) el.classList.add('selected');
+
+                el.onclick = () => toggleDayCloud(dateStr);
+                calendarEl.appendChild(el);
+            }
+        }
+
+        function renderHolidaysSidebar() {
+            const listEl = document.getElementById('holidayListContainer');
+            const holidays = getUSHolidaysList(currentDate.getFullYear(), currentDate.getMonth());
+            
+            listEl.innerHTML = '';
+            
+            if (holidays.length === 0) {
+                listEl.innerHTML = '<li><small>No hay feriados federales este mes.</small></li>';
+                return;
+            }
+
+            holidays.forEach(h => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span class="holiday-date">${h.date} de ${document.getElementById('monthDisplay').innerText.split(' ')[0]}</span>
+                    <span class="holiday-tag">${h.name}</span>
+                `;
+                listEl.appendChild(li);
+            });
+        }
+
+        function changeMonth(step) {
+            currentDate.setMonth(currentDate.getMonth() + step);
+            renderCalendar();
+            renderHolidaysSidebar(); // Actualizar lista lateral
+        }
+
+        // ==========================================
+        // 5. CÁLCULOS
+        // ==========================================
+        function calculateStats(start, end) {
+            let total = 0;
+            let attended = 0;
+            let curr = new Date(start);
+            let limit = new Date(end);
+            
+            curr.setHours(0,0,0,0);
+            limit.setHours(0,0,0,0);
+
+            while(curr <= limit) {
+                const dateStr = curr.toISOString().split('T')[0];
+                const day = curr.getDay();
+
+                // Días hábiles (Lun-Vie)
+                if (day !== 0 && day !== 6) {
+                    total++;
+                    // Solo cuenta si está marcado manualmente en verde
+                    if (officeDays.includes(dateStr)) {
+                        attended++;
+                    }
+                }
+                curr.setDate(curr.getDate() + 1);
+            }
+
+            return {
+                total, 
+                attended, 
+                percent: total === 0 ? 0 : ((attended/total)*100).toFixed(1),
+                startStr: start.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'}),
+                endStr: end.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'})
+            };
+        }
+
+        function updateDashboard() {
+            // 1. Automático (Rolling Window con corte domingo)
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const dayOfWeek = today.getDay(); 
+            // Si hoy es Martes(2), el corte fue hace 3 días (Sábado).
+            const daysToSubtract = dayOfWeek + 1; 
+            
+            const autoEnd = new Date(today);
+            autoEnd.setDate(today.getDate() - daysToSubtract);
+            
+            const autoStart = new Date(autoEnd);
+            autoStart.setDate(autoEnd.getDate() - 60);
+
+            const autoRes = calculateStats(autoStart, autoEnd);
+            
+            document.getElementById('autoPercent').innerText = `${autoRes.percent}%`;
+            document.getElementById('autoDetails').innerHTML = `
+                Periodo: ${autoRes.startStr} al ${autoRes.endStr}<br>
+                Asistencias: <strong>${autoRes.attended}</strong> / ${autoRes.total}
+            `;
+
+            // 2. Manual
+            const sVal = document.getElementById('startDate').value;
+            const eVal = document.getElementById('endDate').value;
+            
+            if (sVal && eVal) {
+                document.getElementById('manualStatsCard').style.display = 'block';
+                const manRes = calculateStats(new Date(sVal+'T00:00:00'), new Date(eVal+'T00:00:00'));
+                document.getElementById('manualPercent').innerText = `${manRes.percent}%`;
+                document.getElementById('manualDetails').innerHTML = `
+                    ${manRes.startStr} a ${manRes.endStr}<br>
+                    Asistencias: <strong>${manRes.attended}</strong> / ${manRes.total}
+                `;
+            }
+        }
+
+        // Iniciar
+        document.getElementById('endDate').value = new Date().toISOString().split('T')[0];
+        loadData(); // Carga Firebase y arranca
+    </script>
+</body>
+</html>
