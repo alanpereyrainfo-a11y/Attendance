@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Office Tracker Cloud ☁️</title>
+    <title>Office Tracker (Rolling 12 Weeks) ☁️</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
 
@@ -115,7 +115,7 @@
     <div id="loader">Cargando datos...</div>
 
     <div class="container">
-        <h1>☁️ Tracker Oficina</h1>
+        <h1>☁️ Tracker Oficina (12 Semanas)</h1>
         <p class="subtitle">Sincronizado en tiempo real</p>
 
         <div class="main-grid">
@@ -323,8 +323,7 @@
 
             while(c <= lim) {
                 const day = c.getDay();
-                // --- AQUI ESTA EL CAMBIO ---
-                // Solo contamos si NO es domingo (0) y NO es sabado (6)
+                // --- CÁLCULO DÍAS HÁBILES (NO SAB/DOM) ---
                 if (day !== 0 && day !== 6) {
                     total++; 
                     const dStr = c.toISOString().split('T')[0];
@@ -347,20 +346,23 @@
             today.setHours(0,0,0,0);
             
             // --- A. CORTE ACTUAL (Pasado) ---
+            // Buscamos el último sábado
             const daysToSubtract = today.getDay() + 1; 
             const currentEnd = new Date(today);
             currentEnd.setDate(today.getDate() - daysToSubtract);
+            
+            // Inicio de la ventana: 84 días atrás (12 semanas)
             const currentStart = new Date(currentEnd);
-            currentStart.setDate(currentEnd.getDate() - 60);
+            currentStart.setDate(currentEnd.getDate() - 84);
 
             const currRes = calculateStats(currentStart, currentEnd);
             
-            const fmt = d => d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit'});
+            const fmt = d => d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit', year:'numeric'});
             
             document.getElementById('autoPercent').innerText = `${currRes.pct}%`;
             document.getElementById('autoDetails').innerHTML = `
                 Periodo: ${fmt(currentStart)} al ${fmt(currentEnd)}<br>
-                Asistencias: <strong>${currRes.attended}</strong> / ${currRes.total}
+                Asistencias: <strong>${currRes.attended}</strong> / ${currRes.total} (Hábiles)
             `;
 
             // --- B. PRÓXIMO CORTE (Futuro) ---
@@ -369,9 +371,11 @@
             nextEnd.setDate(today.getDate() + daysToAdd); // Próximo sábado
             
             const nextStart = new Date(nextEnd);
-            nextStart.setDate(nextEnd.getDate() - 60);
+            nextStart.setDate(nextEnd.getDate() - 84); // 84 días atrás
 
             const nextRes = calculateStats(nextStart, nextEnd);
+            
+            // "Gap Analysis" de días vencidos
             const lostStats = calculateStats(currentStart, new Date(nextStart.getTime() - 86400000));
             const lostDays = lostStats.attended;
 
