@@ -320,12 +320,15 @@
             c.setHours(0,0,0,0); lim.setHours(0,0,0,0);
 
             while(c <= lim) {
-                const day = c.getDay();
-                if (day !== 0 && day !== 6) {
-                    total++;
-                    const dStr = c.toISOString().split('T')[0];
-                    if (officeDays.includes(dStr)) attended++;
+                total++; // Suma siempre al total (serán 60 días exactos en la ventana automática)
+
+                const dStr = c.toISOString().split('T')[0];
+                
+                // Si marcaste asistencia ese día, la suma
+                if (officeDays.includes(dStr)) {
+                    attended++;
                 }
+                
                 c.setDate(c.getDate() + 1);
             }
             return { total, attended, pct: total ? ((attended/total)*100).toFixed(1) : 0 };
