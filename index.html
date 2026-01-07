@@ -317,24 +317,29 @@
             let total = 0, attended = 0;
             let c = new Date(start);
             const lim = new Date(end);
-            c.setHours(0,0,0,0); lim.setHours(0,0,0,0);
+            
+            c.setHours(0,0,0,0); 
+            lim.setHours(0,0,0,0);
 
-           while(curr <= limit) {
-                const dateStr = curr.toISOString().split('T')[0];
-                const day = curr.getDay();
-
-                // Días hábiles (Lun-Vie)
+            while(c <= lim) {
+                const day = c.getDay();
+                // --- AQUI ESTA EL CAMBIO ---
+                // Solo contamos si NO es domingo (0) y NO es sabado (6)
                 if (day !== 0 && day !== 6) {
-                    total++;
-                    // Solo cuenta si está marcado manualmente en verde
-                    if (officeDays.includes(dateStr)) {
+                    total++; 
+                    const dStr = c.toISOString().split('T')[0];
+                    if (officeDays.includes(dStr)) {
                         attended++;
                     }
                 }
-                curr.setDate(curr.getDate() + 1);
+                c.setDate(c.getDate() + 1);
             }
             
-            return { total, attended, pct: total ? ((attended/total)*100).toFixed(1) : 0 };
+            return { 
+                total, 
+                attended, 
+                pct: total ? ((attended/total)*100).toFixed(1) : 0 
+            };
         }
 
         function updateDashboard() {
