@@ -319,18 +319,21 @@
             const lim = new Date(end);
             c.setHours(0,0,0,0); lim.setHours(0,0,0,0);
 
-            while(c <= lim) {
-                total++; // Suma siempre al total (serán 60 días exactos en la ventana automática)
+           while(curr <= limit) {
+                const dateStr = curr.toISOString().split('T')[0];
+                const day = curr.getDay();
 
-                const dStr = c.toISOString().split('T')[0];
-                
-                // Si marcaste asistencia ese día, la suma
-                if (officeDays.includes(dStr)) {
-                    attended++;
+                // Días hábiles (Lun-Vie)
+                if (day !== 0 && day !== 6) {
+                    total++;
+                    // Solo cuenta si está marcado manualmente en verde
+                    if (officeDays.includes(dateStr)) {
+                        attended++;
+                    }
                 }
-                
-                c.setDate(c.getDate() + 1);
+                curr.setDate(curr.getDate() + 1);
             }
+            
             return { total, attended, pct: total ? ((attended/total)*100).toFixed(1) : 0 };
         }
 
